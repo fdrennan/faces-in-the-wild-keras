@@ -172,30 +172,30 @@ if(!file.exists('all_relationships.rda')) {
     )
   
   all_relationships <- 
-  relationships_structured %>% 
-  split(
-    .$allowable_pairs
-  ) %>%
-  map_df(
-    function(x) {
-      parent_child_list <- split(x, x$p_column)
-      parent <-  parent_child_list$p1
-      child <-  parent_child_list$p2
-      map_df(
-        parent$filenames,
-        function(x) {
-          child$parent_file = x
-          child %>% 
-            transmute(
-              parent_file, 
-              child_file = filenames,
-              family_distinction,
-              allowable_pairs,
-              is_kin = TRUE)
-        }
-      )
-    }
-  ) 
+    relationships_structured %>% 
+    split(
+      .$allowable_pairs
+    ) %>%
+    map_df(
+      function(x) {
+        parent_child_list <- split(x, x$p_column)
+        parent <-  parent_child_list$p1
+        child <-  parent_child_list$p2
+        map_df(
+          parent$filenames,
+          function(x) {
+            child$parent_file = x
+            child %>% 
+              transmute(
+                parent_file, 
+                child_file = filenames,
+                family_distinction,
+                allowable_pairs,
+                is_kin = TRUE)
+          }
+        )
+      }
+    ) 
   saveRDS(all_relationships, 'all_relationships.rda') 
 } else {
  all_relatinships <- readRDS('all_relationships.rda') 
@@ -250,20 +250,6 @@ training_data <- bind_cols(order_parent_shuffle, order_child_shuffle) %>%
   )
 ```
 
-```{r}
-
-  map2(
-    all_relationships$parent_file[900],
-    all_relationships$child_file[900],
-    function(x, y) {
-      x_image = load.image(x)
-      y_image = load.image(y)
-      plot(y_image)
-      plot(x_image)
-      
-    }
-  )
-```
 
 
 ```{r}
@@ -324,19 +310,39 @@ generate_pairs <- function(all_relationships, step_size = 10) {
 
 pair_generator = generate_pairs()
 ```
+(
+<!-- ```{r} -->
+<!-- model_filenames <- list.files('models') -->
+<!-- most_recent_model <- tibble(filenames = model_filenames) %>%  -->
+<!--   mutate(tags = str_extract(filenames, "[0-9]+")) %>%  -->
+<!--   filter(tags == max(as.numeric(tags))) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- model = load_model_hdf5(file.path('models', most_recent_model$filenames)) -->
+<!-- ``` -->))
+
 
 ```{r}
 shuffled_index = sample(1:nrow(training_data))
 training_data_shuffled = training_data[shuffled_index,]
-for(i in 1:100) {
+balance <- sum(training_data_shuffled$is_kin)/length(training_data_shuffled$is_kin)
+stepsize = 10
+epoch = 15
+nimages = nrow(training_data_shuffled)
+
+for(i in 1:(nimages*epoch/stepsize)) {
+  message(paste0(i, "\t"))
+  message(paste0(round(i/nimages, 4), "\t"))
+  message(paste0(round(balance, 4), "\t"))
   tic()
-  gen_pairs <- pair_generator(training_data_shuffled, step_size = 10) 
+  gen_pairs <- pair_generator(training_data_shuffled, step_size = stepsize) 
   toc()
   model %>% fit(list(gen_pairs[[1]], 
                      gen_pairs[[2]]), 
                 gen_pairs[[3]],
                 epochs = 1)
-  if (i%%5 == 0) {
+  if (i%%200 == 0) {
     print('saving model')
     if(!dir.exists('models'))
       dir.create('models')
