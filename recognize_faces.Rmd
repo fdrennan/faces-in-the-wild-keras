@@ -12,6 +12,7 @@ library(readr)
 library(tidyr)
 library(tictoc)
 library(rbenchmark)
+library(benchmarkme)
 ```
 
 # Download the Data
@@ -98,17 +99,17 @@ model %>% compile(
 ```{r}
 relationships <- read_csv('train_relationships.csv') %>%
   mutate(label = 1)
-
-non_kin_relationship = tibble(
-  p1 = sample(relationships$p1),
-  p2 = sample(relationships$p2),
-  label = 0
-)
-
-relationships = bind_rows(
-  relationships,
-  non_kin_relationship
-)
+# 
+# non_kin_relationship = tibble(
+#   p1 = sample(relationships$p1),
+#   p2 = sample(relationships$p2),
+#   label = 0
+# )
+# 
+# relationships = bind_rows(
+#   relationships,
+#   non_kin_relationship
+# )
 ```
 
 ```{r}
@@ -253,18 +254,6 @@ training_data <- bind_cols(order_parent_shuffle, order_child_shuffle) %>%
 
 
 ```{r}
-datagen <- image_data_generator(
-  rescale = 1/255,
-  rotation_range = 40,
-  width_shift_range = 0.2,
-  height_shift_range = 0.2,
-  shear_range = 0.2,
-  zoom_range = 0.2,
-  horizontal_flip = TRUE
-)
-```
-
-```{r}
 load_file <- 
   function(x) {
     x %>% 
@@ -287,8 +276,7 @@ generate_pairs <- function(all_relationships, step_size = 10) {
       iteration <<- 1
     else 
       iteration <<- iteration+step_size 
-    
-    
+  
     pf = map(
          next_step$parent_file,
          load_file
@@ -310,31 +298,44 @@ generate_pairs <- function(all_relationships, step_size = 10) {
 
 pair_generator = generate_pairs()
 ```
-(
+
 <!-- ```{r} -->
 <!-- model_filenames <- list.files('models') -->
-<!-- most_recent_model <- tibble(filenames = model_filenames) %>%  -->
-<!--   mutate(tags = str_extract(filenames, "[0-9]+")) %>%  -->
+<!-- most_recent_model <- tibble(filenames = model_filenames) %>% -->
+<!--   mutate(tags = str_extract(filenames, "[0-9]+")) %>% -->
 <!--   filter(tags == max(as.numeric(tags))) -->
 <!-- ``` -->
 
 <!-- ```{r} -->
 <!-- model = load_model_hdf5(file.path('models', most_recent_model$filenames)) -->
-<!-- ``` -->))
+<!-- ``` -->
 
 
 ```{r}
 shuffled_index = sample(1:nrow(training_data))
 training_data_shuffled = training_data[shuffled_index,]
 balance <- sum(training_data_shuffled$is_kin)/length(training_data_shuffled$is_kin)
-stepsize = 10
-epoch = 15
 nimages = nrow(training_data_shuffled)
+rm(
+  'all_relatinships', 
+  'all_relationships', 
+  'order_child_shuffle', 
+  'order_parent_shuffle',
+  'relationships',
+  'shuffle_relationships',
+  'training_data'
+)
+```
 
+
+```{r}
+stepsize = 100
+epoch = 15
 for(i in 1:(nimages*epoch/stepsize)) {
   message(paste0(i, "\t"))
   message(paste0(round(i/nimages, 4), "\t"))
-  message(paste0(round(balance, 4), "\t"))
+  message(paste0(round(balance, 4), "\t")())
+  message(print(get_ram()))
   tic()
   gen_pairs <- pair_generator(training_data_shuffled, step_size = stepsize) 
   toc()
