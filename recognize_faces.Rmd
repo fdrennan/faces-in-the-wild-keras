@@ -147,27 +147,31 @@ relationships <- relationships %>%
 ```
 
 ```{r}
-relationships_structured <- 
-  relationships %>% 
-  mutate(row_id = row_number()) %>% 
-  split(., .$row_id) %>% 
-  map_df(
-    function(x) {
-      tibble(directory = x$directory,
-             filenames = file.path(directory, list.files(directory))) %>% 
-        transmute(
-          row_id     = x$row_id,
-          filenames,
-          family_distinction = x$family_distinction,
-          allowable_pairs = x$allowable_pairs,
-          p_column = x$p_column
-        )
-    }
-  )
+
 ```
 
 ```{r}
-all_relationships <- 
+if(!file.exists('all_relationships.rda')) {
+
+  relationships_structured <- 
+    relationships %>% 
+    mutate(row_id = row_number()) %>% 
+    split(., .$row_id) %>% 
+    map_df(
+      function(x) {
+        tibble(directory = x$directory,
+               filenames = file.path(directory, list.files(directory))) %>% 
+          transmute(
+            row_id     = x$row_id,
+            filenames,
+            family_distinction = x$family_distinction,
+            allowable_pairs = x$allowable_pairs,
+            p_column = x$p_column
+          )
+      }
+    )
+  
+  all_relationships <- 
   relationships_structured %>% 
   split(
     .$allowable_pairs
@@ -192,9 +196,13 @@ all_relationships <-
       )
     }
   ) 
+  saveRDS(all_relationships, 'all_relationships.rda') 
+} else {
+ all_relatinships <- readRDS('all_relationships.rda') 
+}
 
 all_relationships <- 
-  all_relationships %>% 
+  all_relatinships %>% 
   mutate(row_number = row_number())
 
 ```
@@ -315,22 +323,6 @@ generate_pairs <- function(all_relationships, step_size = 10) {
 
 
 pair_generator = generate_pairs()
-pair_generator(training_data_shuffled[1:12,], step_size = 10) 
-```
-
-```{r}
-# reps <- map_df(
-#   1:10*10,
-#   function(x) {
-#    benchmark(
-#      pair_generator(
-#        all_relationships,
-#        step_size = x
-#      ),
-#      replications = 1
-#    ) 
-#   }
-# )
 ```
 
 ```{r}
